@@ -1,6 +1,6 @@
 # Rotulus
 
-## Create PostgreSQL user and database
+1. Create PostgreSQL user and database
 
 ```bash
 sudo -u postgres psql
