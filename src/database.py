@@ -131,7 +131,7 @@ def drop_schema(connection):
 def create_tables(connection):
     print("[*] Creating tables")
     for table in TABLES:
-        query = "create table rotulus.{}( ".format(table["name"])
+        query = "create unlogged table rotulus.{}( ".format(table["name"])
         nb_colums = len(table["columns"])
         i = 0
         for column in table["columns"]:
