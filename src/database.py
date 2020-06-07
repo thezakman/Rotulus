@@ -182,6 +182,36 @@ def remove_tables():
     return False
 
 
+def insert_record(username, doamin, password):
+    db_conf = get_db_conf()
+    if db_conf != False:
+        connection = db_connect(db_conf)
+        if connection != False:
+            query = 'WITH ins1 AS ( \
+                        INSERT INTO rotulus.usernames (username) VALUES ({}) \
+                        ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username \
+                        RETURNING id AS username_id) \
+                    , ins2 AS ( \
+                        INSERT INTO rotulus.domains (domain) VALUES ({}) \
+                        ON CONFLICT (domain) DO UPDATE SET domain=EXCLUDED.domain \
+                        RETURNING id AS domain_id) \
+                    , ins3 AS ( \
+                        INSERT INTO rotulus.passwords (password) VALUES ({}) \
+			            ON CONFLICT (password) DO UPDATE SET password=EXCLUDED.password \
+			            RETURNING id AS password_id) \
+                    INSERT INTO rotulus.records (username_id, domain_id, password_id) \
+                    VALUES ( \
+                        (select username_id from ins1), \
+                        (select domain_id from ins2) \
+                        (select password_id from ins3), \
+                    );'
+            query.format(username, doamin, password)
+            if execute_query(connection, query) == True:
+                return True
+    connection.rollback()
+    return False
+
+
 def parse_cli():
     parser = argparse.ArgumentParser(description='Manage Rotulus database')
     parser.add_argument('-d', '--database', choices=[
