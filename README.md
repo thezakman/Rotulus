@@ -1,8 +1,8 @@
 # Rotulus
 
- The aim of this project is to provide a database schema and a seeder to stock database leak the most efficient way.
+ The aim of this project is to provide a database schema and a seeder to stock leaked database the most efficient way.
 
-- If the database leak contains hashed password it will try finding the corresponding clear text password in the database.
+- If the leaked database contains hashed password it will try finding the corresponding clear text password in the database.
 
 - It creates an error file containing all the records which it haven't been able to parse.
 
