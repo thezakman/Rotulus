@@ -2,9 +2,25 @@
 
  The aim of this project is to provide a database schema and a seeder to stock leaked database the most efficient way.
 
-- If the leaked database contains hashed password it will try finding the corresponding clear text password in the database.
+- If the leaked database contains hashed password it will try to find the corresponding clear text password in the database.
 
 - It creates an error file containing all the records which it haven't been able to parse.
+
+## 0. Install requirements
+### Postgresql
+```bash
+sudo apt install postgresql
+```
+
+### Python 
+```bash
+sudo apt install python3 python3-pip
+```
+
+### Python modules
+```bash
+pip3 install -r requirements.txt
+```
 
 ## 1. Databse setup
 
@@ -115,6 +131,8 @@ It like making a drop and a create (`python3 database.py -d drop && python3 data
 
 - [ ] Database migration
 - [ ] Database query
+- [ ] Rotulus frontend
+- [ ] Cracking passwords autonomously
 
 ## Support us !
 ```
