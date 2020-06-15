@@ -26,7 +26,7 @@ sudo -u postgres psql
 
 ```psql
 create database rotulus;
-reate user rotulususer with encrypted password 'rotuluspassword';
+create user rotulususer with encrypted password 'rotuluspassword';
 grant all privileges on database rotulus to rotulususer;
 ```
 
