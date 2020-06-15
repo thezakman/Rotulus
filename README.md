@@ -113,8 +113,8 @@ It like making a drop and a create (`python3 database.py -d drop && python3 data
 
 ## Coming soon
 
-- [] Database migration
-- [] Database query
+- [ ] Database migration
+- [ ] Database query
 
 ## Support us !
 ```
