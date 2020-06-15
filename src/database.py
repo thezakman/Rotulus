@@ -1,8 +1,8 @@
-import sys
-import yaml
-import psycopg2
 import argparse
+import sys
 
+import psycopg2
+import yaml
 
 TABLES = [
     {"name": "usernames",
@@ -11,7 +11,7 @@ TABLES = [
           "properties": "bigserial primary key"
           },
          {"name": "username",
-          "properties": "char(64) not null unique"
+          "properties": "text not null unique"
           }
      ],
      },
@@ -21,7 +21,7 @@ TABLES = [
           "properties": "bigserial primary key"
           },
          {"name": "domain",
-             "properties": "char(255) not null unique"
+             "properties": "text not null unique"
           }
      ],
      },
@@ -51,7 +51,7 @@ TABLES = [
           "properties": "bigserial primary key"
           },
          {"name": "hash",
-             "properties": "text not null unique"
+             "properties": "char(255) not null unique"
           },
          {"name": "hash_type_id",
           "properties": "int references rotulus.hashes_types(id)"
@@ -93,17 +93,21 @@ def get_db_conf():
         return False
 
 
-def db_connect(db_conf):
-    print("[*] Connecting to PostgreSQL database")
-    try:
-        connection = psycopg2.connect(user=db_conf["psql"]["username"],
-                                      password=db_conf["psql"]["password"],
-                                      host=db_conf["psql"]["host"],
-                                      port=db_conf["psql"]["port"],
-                                      database=db_conf["psql"]["dbname"])
-        return connection
-    except (Exception, psycopg2.Error) as error:
-        print("[!] Error while connecting to PostgreSQL", error)
+def db_connect():
+    #print("[*] Connecting to PostgreSQL database")
+    db_conf = get_db_conf()
+    if db_conf != False:
+        try:
+            connection = psycopg2.connect(user=db_conf["psql"]["username"],
+                                          password=db_conf["psql"]["password"],
+                                          host=db_conf["psql"]["host"],
+                                          port=db_conf["psql"]["port"],
+                                          database=db_conf["psql"]["dbname"])
+            return connection
+        except (Exception, psycopg2.Error) as error:
+            print("[!] Error while connecting to PostgreSQL", error)
+            return False
+    else:
         return False
 
 
@@ -111,9 +115,15 @@ def execute_query(connection, query):
     try:
         connection.cursor().execute(query)
         return True
-    except:
+    except (Exception, psycopg2.Error) as error:
         print("[!] Unable to execute '{}'".format(query))
+        print(error)
         return False
+
+
+def close_communication(connection):
+    connection.cursor().close()
+    connection.close()
 
 
 def create_schema(connection):
@@ -123,7 +133,7 @@ def create_schema(connection):
 
 
 def drop_schema(connection):
-    print("[*] dropping schema")
+    print("[*] Dropping schema")
     query = "drop schema rotulus;"
     return execute_query(connection, query)
 
@@ -146,7 +156,7 @@ def create_tables(connection):
 
 
 def drop_tables(connection):
-    print("[*] dropping tables")
+    print("[*] Dropping tables")
     for table in TABLES:
         query = "drop table rotulus.{} cascade;".format(table["name"])
         if execute_query(connection, query) == False:
@@ -155,67 +165,37 @@ def drop_tables(connection):
 
 
 def setup_database():
-    db_conf = get_db_conf()
-    if db_conf != False:
-        connection = db_connect(db_conf)
-        if connection != False:
-            if create_schema(connection):
-                if create_tables(connection) == True:
-                    connection.commit()
-                    return True
-
-    connection.rollback()
+    connection = db_connect()
+    if connection != False:
+        if create_schema(connection):
+            if create_tables(connection) == True:
+                connection.commit()
+                close_communication(connection)
+                return True
+            else:
+                connection.rollback()
+        close_communication(connection)
     return False
 
 
 def remove_tables():
-    db_conf = get_db_conf()
-    if db_conf != False:
-        connection = db_connect(db_conf)
-        if connection != False:
-            if drop_tables(connection) == True:
-                if drop_schema(connection) == True:
-                    connection.commit()
-                    return True
-
-    connection.rollback()
-    return False
-
-
-def insert_record(username, doamin, password):
-    db_conf = get_db_conf()
-    if db_conf != False:
-        connection = db_connect(db_conf)
-        if connection != False:
-            query = 'WITH ins1 AS ( \
-                        INSERT INTO rotulus.usernames (username) VALUES ({}) \
-                        ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username \
-                        RETURNING id AS username_id) \
-                    , ins2 AS ( \
-                        INSERT INTO rotulus.domains (domain) VALUES ({}) \
-                        ON CONFLICT (domain) DO UPDATE SET domain=EXCLUDED.domain \
-                        RETURNING id AS domain_id) \
-                    , ins3 AS ( \
-                        INSERT INTO rotulus.passwords (password) VALUES ({}) \
-			            ON CONFLICT (password) DO UPDATE SET password=EXCLUDED.password \
-			            RETURNING id AS password_id) \
-                    INSERT INTO rotulus.records (username_id, domain_id, password_id) \
-                    VALUES ( \
-                        (select username_id from ins1), \
-                        (select domain_id from ins2) \
-                        (select password_id from ins3), \
-                    );'
-            query.format(username, doamin, password)
-            if execute_query(connection, query) == True:
+    connection = db_connect()
+    if connection != False:
+        if drop_tables(connection) == True:
+            if drop_schema(connection) == True:
+                connection.commit()
+                close_communication(connection)
                 return True
-    connection.rollback()
+            else:
+                connection.rollback()
+        close_communication(connection)
     return False
 
 
 def parse_cli():
     parser = argparse.ArgumentParser(description='Manage Rotulus database')
     parser.add_argument('-d', '--database', choices=[
-                        'create', 'drop'], required=True, help='Action against database tables')
+                        'create', 'drop', 'reset'], required=True, help='Action against database tables')
 
     args = parser.parse_args()
 
@@ -223,6 +203,9 @@ def parse_cli():
         setup_database()
     elif args.database == "drop":
         remove_tables()
+    elif args.database == "reset":
+        remove_tables()
+        setup_database()
 
 
 if __name__ == "__main__":
