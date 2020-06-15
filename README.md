@@ -131,7 +131,7 @@ It like making a drop and a create (`python3 database.py -d drop && python3 data
 ## Coming soon ...
 
 - [ ] Database migration
-- [ ] Database query
+- [ ] Database query from CLI
 - [ ] Rotulus frontend
 - [ ] Cracking passwords autonomously
 
