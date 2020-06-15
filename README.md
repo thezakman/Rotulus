@@ -6,23 +6,24 @@
 
 - It creates an error file containing all the records which it haven't been able to parse.
 
-## 0. Install requirements
-### Postgresql
+## Pre-requisites
+### 0. Install requirements
+#### Postgresql
 ```bash
 sudo apt install postgresql
 ```
 
-### Python 
+#### Python 
 ```bash
 sudo apt install python3 python3-pip
 ```
 
-### Python modules
+#### Python modules
 ```bash
 pip3 install -r requirements.txt
 ```
 
-## 1. Databse setup
+### 1. Databse setup
 
 Depending on the data drive, add one of the `conf` files from the `conf` directory to
 Postgres' `conf.d` dir.
@@ -34,7 +35,7 @@ sudo cp conf/16gb_4cpu_ssd.conf /etc/postgresql/12/main/conf.d/dump.conf
 sudo systemctl restart postgresql@12-main.service
 ```
 
-## 2. Create PostgreSQL user and database
+### 2. Create PostgreSQL user and database
 
 ```bash
 sudo -u postgres psql
@@ -46,13 +47,13 @@ create user rotulususer with encrypted password 'rotuluspassword';
 grant all privileges on database rotulus to rotulususer;
 ```
 
-## 3. Modify database configuration file
+### 3. Modify database configuration file
 
 The database configuration file is `conf/database.yml`.
 
 Modify it to fit your database configuration.
 
-## 4. Create tables
+### 4. Create tables
 
 ```bash
 python3 database.py -d create
@@ -127,7 +128,7 @@ python3 database.py -d rest
 
 It like making a drop and a create (`python3 database.py -d drop && python3 database.py -d create)`.
 
-## Coming soon
+## Coming soon ...
 
 - [ ] Database migration
 - [ ] Database query
