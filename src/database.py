@@ -11,7 +11,7 @@ TABLES = [
           "properties": "bigserial primary key"
           },
          {"name": "username",
-          "properties": "text not null unique"
+          "properties": "bytea not null unique"
           }
      ],
      },
@@ -21,7 +21,7 @@ TABLES = [
           "properties": "bigserial primary key"
           },
          {"name": "domain",
-             "properties": "text not null unique"
+             "properties": "bytea not null unique"
           }
      ],
      },
@@ -31,7 +31,7 @@ TABLES = [
           "properties": "bigserial primary key"
           },
          {"name": "password",
-             "properties": "text not null unique"
+             "properties": "bytea not null unique"
           }
      ],
      },

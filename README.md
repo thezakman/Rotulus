@@ -10,7 +10,7 @@
 ### 0. Install requirements
 #### Postgresql
 ```bash
-sudo apt install postgresql
+sudo apt install postgresql libpq-dev
 ```
 
 #### Python 
@@ -123,15 +123,42 @@ python3 database.py -d drop
 #### Reset
 
 ```bash
-python3 database.py -d rest
+python3 database.py -d reset
 ```
 
-It like making a drop and a create (`python3 database.py -d drop && python3 database.py -d create)`.
+It's like making a drop and a create (`python3 database.py -d drop && python3 database.py -d create`).
+
+### Query
+
+Querying the database is possible with `query.py`
+
+#### Select usernames which are equal to ...
+
+```bash
+python3 query.py -s username -e foo
+```
+
+#### Select passwords which are equal to ...
+
+```bash
+python3 query.py -s password -e foo
+```
+
+#### Select usernames which contains ...
+
+```bash
+python3 query.py -s username -c foo
+```
+
+#### Select passwords which contains ...
+
+```bash
+python3 query.py -s password -c foo
+```
 
 ## Coming soon ...
 
 - [ ] Database migration
-- [ ] Database query from CLI
 - [ ] Rotulus frontend
 - [ ] Cracking passwords autonomously
 

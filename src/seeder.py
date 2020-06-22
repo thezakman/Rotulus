@@ -1,37 +1,15 @@
 import argparse
 import asyncio
-import base64
 import hashlib
+import os
 import time
 
 import asyncpg
 from hashid import get_hash_type
 
 from database import get_db_conf
-
-
-class Record:
-    def __init__(self):
-        self.username = ""
-        self.domain = ""
-        self.password = ""
-        self.hash = ""
-        self.hash_type = ""
-
-    def set_username(self, username):
-        self.username = base64.b64encode(username.encode()).decode()
-
-    def set_domain(self, domain):
-        self.domain = base64.b64encode(domain.encode()).decode()
-
-    def set_password(self, password):
-        self.password = base64.b64encode(password.encode()).decode()
-
-    def set_password_hash(self, p_hash):
-        self.hash = p_hash
-
-    def set_hash_type(self, hash_type):
-        self.hash_type = hash_type
+from query import select_record_count
+from record import Record
 
 
 def parse_cli():
@@ -44,6 +22,7 @@ def parse_cli():
                         nargs='+')
     parser.add_argument('-s', '--spliter',
                         required=True,
+                        type=os.fsencode,
                         help='Character to split line')
     parser.add_argument('-a', '--hash',
                         action='store_true',
@@ -55,12 +34,12 @@ def parse_cli():
 
 
 def write_errors(errors):
-    f_name = "errors_{}.txt".format(time.strftime("%Y%m%d%H%M%S"))
-    with open(f_name, "wb") as file:
+    f_name = 'errors_{}.txt'.format(time.strftime('%Y%m%d%H%M%S'))
+    with open(f_name, 'wb') as file:
         for data in errors:
             try:
-                if not data.endswith("\n"):
-                    data += "\n"
+                if not data.endswith(b'\n'):
+                    data += b'\n'
             except:
                 pass
             try:
@@ -70,23 +49,24 @@ def write_errors(errors):
             try:
                 file.write(record)
             except:
-                print("[!] {}".format(record))
+                print('[!] {}'.format(record))
                 continue
+    print('[+] Errors writed to ./{}'.format(f_name))
 
 
 async def db_connect():
-    print("[*] Connecting to PostgreSQL database")
+    print('[*] Connecting to PostgreSQL database')
     db_conf = get_db_conf()
     if db_conf != False:
         try:
-            pool = await asyncpg.create_pool(user=db_conf["psql"]["username"],
-                                             password=db_conf["psql"]["password"],
-                                             host=db_conf["psql"]["host"],
-                                             port=db_conf["psql"]["port"],
-                                             database=db_conf["psql"]["dbname"])
-            return pool
+            con = await asyncpg.connect(user=db_conf['psql']['username'],
+                                        password=db_conf['psql']['password'],
+                                        host=db_conf['psql']['host'],
+                                        port=db_conf['psql']['port'],
+                                        database=db_conf['psql']['dbname'])
+            return con
         except:
-            print("[!] Error while connecting to PostgreSQL")
+            print('[!] Error while connecting to PostgreSQL')
             return False
     else:
         return False
@@ -157,12 +137,12 @@ async def main(args):
     l_errors = []
     records = []
     nb_records = 0
+    before = await select_record_count(connection)
     for file in args.file:
         for line in file:
             nb_records += 1
             try:
-                line = line.decode()
-                if line.endswith("\n"):
+                if line.endswith(b'\n'):
                     line = line[:-1]
             except:
                 l_errors.append(line)
@@ -174,10 +154,10 @@ async def main(args):
                     l_errors.append(line)
                     continue
                 if len(data) == 2:
-                    if '@' in data[0]:
+                    if b'@' in data[0]:
                         record = Record()
-                        record.set_username(data[0].split('@')[0])
-                        record.set_domain(data[0].split('@')[1])
+                        record.set_username(data[0].split(b'@')[0])
+                        record.set_domain(data[0].split(b'@')[1])
                         if args.hash or args.cipher:
                             record.set_password_hash(data[1])
                             if args.cipher:
@@ -190,11 +170,10 @@ async def main(args):
                         else:
                             record.set_password(data[1])
                             record.set_password_hash(
-                                hashlib.md5(data[1].encode()).hexdigest())
-                            record.set_hash_type("md5")
+                                hashlib.md5(data[1]).hexdigest())
+                            record.set_hash_type('md5')
                             records.append(
                                 (record.username, record.domain, record.password, record.hash, record.hash_type))
-                        #print("{} {} {} {} {}".format(record.username, record.domain, record.password, record.hash, record.hash_type))
                     else:
                         l_errors.append(line)
                 else:
@@ -202,19 +181,20 @@ async def main(args):
             else:
                 l_errors.append(line)
     try:
-        print("[*] Inserting {} rows".format(len(records)))
+        print('[*] Inserting {} records'.format(len(records)))
         if args.hash:
             await insert_records_without_passwords(connection, records)
         else:
             await insert_records_with_passwords(connection, records)
-
     except Exception as e:
-        print("[!] Error while inserting data to PostgreSQL:\n\t{}".format(e))
+        print('[!] Error while inserting data to PostgreSQL:\n\t{}'.format(e))
+
+    after = await select_record_count(connection)
 
     if l_errors:
         write_errors(l_errors)
 
-    print("[+] SUCCESS={} ERROR={}".format(nb_records, len(l_errors)))
+    print('[-] SUCCESS={} ERROR={}'.format(after-before, len(l_errors)))
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     asyncio.get_event_loop().run_until_complete(main(parse_cli()))
