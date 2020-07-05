@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+import rotulus
+import argparse
+import sys
+
+
+def parse_cli():
+    # keep only action arguments in args to select the right action
+    action_args = sys.argv[2:]
+    sys.argv = sys.argv[:2]
+
+    parser = argparse.ArgumentParser(description='Manage Rotulus')
+    parser.add_argument('action', choices=[
+                        'database', 'query', 'seeder', 'hashid'],
+                        help='Rotulus features.')
+
+    args = parser.parse_args()
+
+    # send action arguments to the action script
+    del sys.argv[1:2]
+    sys.argv.extend(action_args)
+
+    if args.action == "database":
+        rotulus.database.main()
+    elif args.action == "query":
+        rotulus.query.main()
+    elif args.action == "seeder":
+        rotulus.seeder.main()
+    elif args.action == "hashid":
+        rotulus.hashid.main()
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    parse_cli()

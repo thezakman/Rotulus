@@ -47,19 +47,51 @@ create user rotulususer with encrypted password 'rotuluspassword';
 grant all privileges on database rotulus to rotulususer;
 ```
 
-### 3. Modify database configuration file
-
-The database configuration file is `conf/database.yml`.
-
-Modify it to fit your database configuration.
-
-### 4. Create tables
+### 3. Install Rotulus
 
 ```bash
-python3 database.py -d create
+pip3 install .
 ```
 
+### 4. Create Rotulus database configuration file
+
+#### Assisted
+
+```bash
+rotulus database -d init
+```
+
+#### Manually
+
+A Rotulus database configuration example file is at `conf/rotulus.yml`.
+
+Modify it to fit your database configuration and, copy it where you want to store it.
+
+Then you have to create an environment variable name `ROTULUS_CONF_PATH` with the file path as value.
+
 ## Usage
+
+### Databse
+`database` module try to read rotulus database configuration file path from `ROTULUS_CONF_PATH` environment variable or read rotulus database configuration from `~/.rotulus.yml`.
+
+#### Create
+
+```bash
+rotulus database -d create
+```
+
+#### Drop
+
+```bash
+rotulus database -d drop
+```
+
+#### Reset
+
+```bash
+rotulus database -d reset
+```
+
 ### Seeding
 
 #### Input file format
@@ -85,45 +117,23 @@ For example:
 
 - Insert data from one file with `:` separator
 ```bash
-python3 seeder.py -f dbleak.txt -s :
+rotulus seeder -f dbleak.txt -s :
 ```
 
 - Insert data from all file in a directory with `;` separator
 ```bash
-python3 seeder.py -f dbleaks/* -s ;
+rotulus seeder -f dbleaks/* -s ;
 ```
 
 - Insert data from one file with `:` separator and hashed password without knowing the type of hash
 ```bash
-python3 seeder.py -f dbleak_with_hashed_passwords.txt -s : -a
+rotulus seeder -f dbleak_with_hashed_passwords.txt -s : -a
 ```
 Using a modified version of [hashID](https://github.com/psypanda/hashID) it'll identify for you the type of hash used. **Without a 100% accuracy**.
 
 - Insert data from one file with `:` separator and hashed password without knowing the type of hash
 ```bash
-python3 seeder.py -f dbleak_with_hashed_passwords.txt -s : -c md5
-```
-
-### Databse
-
-`database.py` reade the database configuration in `conf/database.yml`.
-
-#### Create
-
-```bash
-python3 database.py -d create
-```
-
-#### Drop
-
-```bash
-python3 database.py -d drop
-```
-
-#### Reset
-
-```bash
-python3 database.py -d reset
+rotulus seeder -f dbleak_with_hashed_passwords.txt -s : -c md5
 ```
 
 It's like making a drop and a create (`python3 database.py -d drop && python3 database.py -d create`).
@@ -135,25 +145,25 @@ Querying the database is possible with `query.py`
 #### Select usernames which are equal to ...
 
 ```bash
-python3 query.py -s username -e foo
+rotulus query -s username -e foo
 ```
 
 #### Select passwords which are equal to ...
 
 ```bash
-python3 query.py -s password -e foo
+rotulus query -s password -e foo
 ```
 
 #### Select usernames which contains ...
 
 ```bash
-python3 query.py -s username -c foo
+rotulus query -s username -c foo
 ```
 
 #### Select passwords which contains ...
 
 ```bash
-python3 query.py -s password -c foo
+rotulus query -s password -c foo
 ```
 
 ## Coming soon ...
@@ -161,6 +171,10 @@ python3 query.py -s password -c foo
 - [ ] Database migration
 - [ ] Rotulus frontend
 - [ ] Cracking passwords autonomously
+
+## Authors
+- [**op1um**](https://github.com/0p1um)
+- [**x1n5h3n**](https://github.com/x1n5h3n)
 
 ## Support us !
 ```
