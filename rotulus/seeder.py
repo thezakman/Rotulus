@@ -6,10 +6,9 @@ import signal
 import sys
 import time
 
-import asyncpg
-from rotulus.database import get_db_conf
+from rotulus.database import async_db_connect, db_connect, create_hash_table, close_communication, alter_records_table
 from rotulus.hashid import get_hash_type
-from rotulus.query import select_record_count
+from rotulus.query import select_record_count, hash_type_known
 from rotulus.record import Record
 
 
@@ -23,7 +22,7 @@ def parse_cli():
         description='Insert data in Rotulus database')
     parser.add_argument('-f', '--file',
                         required=True,
-                        help='One or more files containing email address, password, ...',
+                        help='One or more files containing email address, password or hash',
                         type=argparse.FileType('rb'),
                         nargs='+')
     parser.add_argument('-s', '--spliter',
@@ -60,24 +59,6 @@ def write_errors(errors):
     print('[+] Errors writed to ./{}'.format(f_name))
 
 
-async def db_connect():
-    print('[*] Connecting to PostgreSQL database')
-    db_conf = get_db_conf()
-    if db_conf != False:
-        try:
-            con = await asyncpg.connect(user=db_conf['psql']['username'],
-                                        password=db_conf['psql']['password'],
-                                        host=db_conf['psql']['host'],
-                                        port=db_conf['psql']['port'],
-                                        database=db_conf['psql']['dbname'])
-            return con
-        except:
-            print('[!] Error while connecting to PostgreSQL')
-            return False
-    else:
-        return False
-
-
 async def insert_records_with_passwords(connection, records):
     statement = '''WITH ins1 AS ( \
                 INSERT INTO rotulus.usernames (username) VALUES ($1) \
@@ -91,26 +72,16 @@ async def insert_records_with_passwords(connection, records):
                 INSERT INTO rotulus.passwords (password) VALUES ($3) \
                 ON CONFLICT (password) DO UPDATE SET password=EXCLUDED.password \
                 RETURNING id AS password_id) \
-            , ins4 AS ( \
-                INSERT INTO rotulus.hashes_types (hash_type) VALUES ($5) \
-                ON CONFLICT (hash_type) DO UPDATE SET hash_type=EXCLUDED.hash_type \
-                RETURNING id AS hash_type_id) \
-            , ins5 AS ( \
-                INSERT INTO rotulus.hashes (hash, hash_type_id) \
-                VALUES ($4, (select hash_type_id from ins4) ) \
-                ON CONFLICT (hash) DO UPDATE SET hash=EXCLUDED.hash \
-                RETURNING id AS hash_id) \
-            INSERT INTO rotulus.records (username_id, domain_id, password_id, hash_id) \
+            INSERT INTO rotulus.records (username_id, domain_id, password_id) \
             VALUES ( \
                 (select username_id from ins1), \
                 (select domain_id from ins2), \
-                (select password_id from ins3), \
-                (select hash_id from ins5) \
+                (select password_id from ins3)
             )'''
     await connection.executemany(statement, records)
 
 
-async def insert_records_without_passwords(connection, records):
+async def insert_records_with_hash(connection, records, hash_type):
     statement = '''WITH ins1 AS ( \
                 INSERT INTO rotulus.usernames (username) VALUES ($1) \
                 ON CONFLICT (username) DO UPDATE SET username=EXCLUDED.username \
@@ -124,22 +95,33 @@ async def insert_records_without_passwords(connection, records):
                 ON CONFLICT (hash_type) DO UPDATE SET hash_type=EXCLUDED.hash_type \
                 RETURNING id AS hash_type_id) \
             , ins4 AS ( \
-                INSERT INTO rotulus.hashes (hash, hash_type_id) \
-                VALUES ($3, (select hash_type_id from ins3) ) \
+                INSERT INTO rotulus.{}_hashes (hash) VALUES ($3) \
                 ON CONFLICT (hash) DO UPDATE SET hash=EXCLUDED.hash \
                 RETURNING id AS hash_id) \
-            INSERT INTO rotulus.records (username_id, domain_id, hash_id, password_id) \
+            INSERT INTO rotulus.records (username_id, domain_id, {}_id) \
             VALUES ( \
                 (select username_id from ins1), \
                 (select domain_id from ins2), \
-                (select hash_id from ins4), \
-                (select distinct password_id from rotulus.records where hash_id = (select hash_id from ins4) and password_id IS NOT NULL)
-            )'''
+                (select hash_id from ins4)
+            )'''.format(hash_type, hash_type)
     await connection.executemany(statement, records)
 
 
+async def add_records_with_hashes(connection, records):
+    ret = True
+    con = db_connect()
+    hash_type = records[0][3]
+    if con:
+        if not hash_type_known(con, hash_type):
+            if create_hash_table(con, hash_type):
+                ret = alter_records_table(con, hash_type)
+        close_communication(con)
+    if ret:
+        await insert_records_with_hash(connection, records, hash_type)
+
+
 async def insert_in_db(args):
-    connection = await db_connect()
+    connection = await async_db_connect()
     l_errors = []
     records = []
     nb_records = 0
@@ -155,7 +137,7 @@ async def insert_in_db(args):
                 continue
             if args.spliter in line:
                 try:
-                    data = line.split(args.spliter)
+                    data = line.split(args.spliter, 1)
                 except:
                     l_errors.append(line)
                     continue
@@ -175,11 +157,8 @@ async def insert_in_db(args):
                                 (record.username, record.domain, record.hash, record.hash_type))
                         else:
                             record.set_password(data[1])
-                            record.set_password_hash(
-                                hashlib.md5(data[1]).hexdigest())
-                            record.set_hash_type('md5')
                             records.append(
-                                (record.username, record.domain, record.password, record.hash, record.hash_type))
+                                (record.username, record.domain, record.password))
                     else:
                         l_errors.append(line)
                 else:
@@ -188,8 +167,8 @@ async def insert_in_db(args):
                 l_errors.append(line)
     try:
         print('[*] Inserting {} records'.format(len(records)))
-        if args.hash:
-            await insert_records_without_passwords(connection, records)
+        if args.hash or args.cipher:
+            await add_records_with_hashes(connection, records)
         else:
             await insert_records_with_passwords(connection, records)
     except Exception as e:

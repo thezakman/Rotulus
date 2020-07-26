@@ -1,9 +1,11 @@
 import argparse
+import asyncio
 import os
 import signal
 import sys
 from pathlib import Path
 
+import asyncpg
 import psycopg2
 import yaml
 
@@ -44,20 +46,7 @@ TABLES = [
           "properties": "serial primary key"
           },
          {"name": "hash_type",
-             "properties": "char(50) not null unique"
-          }
-     ],
-     },
-    {"name": "hashes",
-     "columns": [
-         {"name": "id",
-          "properties": "bigserial primary key"
-          },
-         {"name": "hash",
-             "properties": "char(255) not null unique"
-          },
-         {"name": "hash_type_id",
-          "properties": "int references rotulus.hashes_types(id)"
+             "properties": "text not null unique"
           }
      ],
      },
@@ -74,13 +63,20 @@ TABLES = [
           },
          {"name": "password_id",
           "properties": "bigint references rotulus.passwords(id)"
-          },
-         {"name": "hash_id",
-          "properties": "bigint references rotulus.hashes(id)"
           }
      ]
      }
 ]
+
+HASH_TEMPLATE = {"name": "hashes",
+                 "columns": [
+                     {"name": "id",
+                      "properties": "bigserial primary key"
+                      },
+                     {"name": "hash",
+                      "properties": "text not null unique"
+                      }
+                 ]}
 
 
 def signal_handler(signal, frame):
@@ -149,7 +145,6 @@ def get_db_conf():
 
 
 def db_connect():
-    #print("[*] Connecting to PostgreSQL database")
     db_conf = get_db_conf()
     if db_conf != False:
         try:
@@ -166,9 +161,28 @@ def db_connect():
         return False
 
 
+async def async_db_connect():
+    print('[*] Connecting to PostgreSQL database')
+    db_conf = get_db_conf()
+    if db_conf != False:
+        try:
+            con = await asyncpg.connect(user=db_conf['psql']['username'],
+                                        password=db_conf['psql']['password'],
+                                        host=db_conf['psql']['host'],
+                                        port=db_conf['psql']['port'],
+                                        database=db_conf['psql']['dbname'])
+            return con
+        except:
+            print('[!] Error while connecting to PostgreSQL')
+            return False
+    else:
+        return False
+
+
 def execute_query(connection, query):
     try:
         connection.cursor().execute(query)
+        connection.commit()
         return True
     except (Exception, psycopg2.Error) as error:
         print("[!] Unable to execute '{}'".format(query))
@@ -182,21 +196,21 @@ def close_communication(connection):
 
 
 def create_schema(connection):
-    print("[*] Creating schema")
+    print("[*] Creating schema rotulus")
     query = "create schema rotulus;"
     return execute_query(connection, query)
 
 
 def drop_schema(connection):
-    print("[*] Dropping schema")
-    query = "drop schema rotulus;"
+    print("[*] Dropping schema rotulus in cascade")
+    query = "drop schema rotulus cascade;"
     return execute_query(connection, query)
 
 
-def create_tables(connection):
-    print("[*] Creating tables")
-    for table in TABLES:
-        query = "create unlogged table rotulus.{}( ".format(table["name"])
+def create_tables(connection, tables):
+    for table in tables:
+        print("[*] Creating table rotulus.{}".format(table["name"]))
+        query = "create unlogged table rotulus.{}(".format(table["name"])
         nb_colums = len(table["columns"])
         i = 0
         for column in table["columns"]:
@@ -210,9 +224,22 @@ def create_tables(connection):
     return True
 
 
-def drop_tables(connection):
+def create_hash_table(connection, hash_type):
+    hash_table = HASH_TEMPLATE
+    hash_table["name"] = "{}_{}".format(
+        hash_type, HASH_TEMPLATE["name"])
+    return create_tables(connection, [hash_table])
+
+
+def alter_records_table(connection, hash_type):
+    query = 'alter table rotulus.records add column {}_id bigint references rotulus.{}_hashes(id)'.format(
+        hash_type, hash_type)
+    return execute_query(connection, query)
+
+
+def drop_tables(connection, tables):
     print("[*] Dropping tables")
-    for table in TABLES:
+    for table in tables:
         query = "drop table rotulus.{} cascade;".format(table["name"])
         if execute_query(connection, query) == False:
             return False
@@ -223,8 +250,7 @@ def setup_database():
     connection = db_connect()
     if connection != False:
         if create_schema(connection):
-            if create_tables(connection) == True:
-                connection.commit()
+            if create_tables(connection, TABLES) == True:
                 close_communication(connection)
                 return True
             else:
@@ -236,13 +262,12 @@ def setup_database():
 def remove_tables():
     connection = db_connect()
     if connection != False:
-        if drop_tables(connection) == True:
-            if drop_schema(connection) == True:
-                connection.commit()
-                close_communication(connection)
-                return True
-            else:
-                connection.rollback()
+        if drop_schema(connection) == True:
+            connection.commit()
+            close_communication(connection)
+            return True
+        else:
+            connection.rollback()
         close_communication(connection)
     return False
 

@@ -19,7 +19,7 @@ class Record:
         self.password = password
 
     def set_password_hash(self, p_hash):
-        self.hash = p_hash.replace(' ', '')
+        self.hash = p_hash.decode()
 
     def set_hash_type(self, hash_type):
         self.hash_type = hash_type.replace(' ', '')

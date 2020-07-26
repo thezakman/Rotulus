@@ -140,8 +140,6 @@ It's like making a drop and a create (`python3 database.py -d drop && python3 da
 
 ### Query
 
-Querying the database is possible with `query.py`
-
 #### Select usernames which are equal to ...
 
 ```bash
@@ -165,6 +163,31 @@ rotulus query -s username -c foo
 ```bash
 rotulus query -s password -c foo
 ```
+
+### Swell
+
+The `swell` module allows:
+- Hash all clear password using all hash types present in the database
+- Find clear password corresponding to hashed one
+
+### Hash all clear password using hashes types present in the database
+```bash
+rotulus swell -a
+```
+
+### Find clear password of a password hash
+```bash
+rotulus swell -f
+```
+
+#### Use case
+You have imported a leaked database containing md5 password hashes.
+
+Then, you obtain another leaked database with clear text passwords.
+
+Using `swell` module, you will be able to hash all clear text passwords, from the second leak, to md5.
+
+If md5 password compute from the second leak is found in the first one, you will have the corresponding clear text password !
 
 ## Coming soon ...
 

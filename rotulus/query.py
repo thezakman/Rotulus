@@ -7,7 +7,7 @@ import sys
 import asyncpg
 import psycopg2
 import psycopg2.extras
-from rotulus.database import get_db_conf
+from rotulus.database import db_connect
 from rotulus.record import Record
 
 
@@ -31,28 +31,24 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 
-def db_connect():
-    db_conf = get_db_conf()
-    if db_conf != False:
-        try:
-            con = psycopg2.connect(user=db_conf["psql"]["username"],
-                                   password=db_conf["psql"]["password"],
-                                   host=db_conf["psql"]["host"],
-                                   port=db_conf["psql"]["port"],
-                                   database=db_conf["psql"]["dbname"])
-            return con
-        except:
-            print("[!] Error while connecting to PostgreSQL")
-            return False
-    else:
-        return False
-
-
 async def select_record_count(connection):
     query = '''select count(*) from rotulus.records'''
     statement = await connection.prepare(query)
     return await statement.fetchval()
 
+
+def hash_type_known(connection, hash_type):
+    cur = connection.cursor()
+    query = 'select id from rotulus.hashes_types where hash_type like %s'
+    cur.execute(query, (hash_type,))
+    return cur.fetchone()
+
+
+def get_hash_types(connection):
+    cur = connection.cursor()
+    query = 'select hash_type from rotulus.hashes_types'
+    cur.execute(query)
+    return cur.fetchall()
 
 def select_record_from_username_id(connection, record_id):
     cur = connection.cursor(cursor_factory=psycopg2.extras.DictCursor)

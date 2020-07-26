@@ -11,7 +11,7 @@ def parse_cli():
 
     parser = argparse.ArgumentParser(description='Manage Rotulus')
     parser.add_argument('action', choices=[
-                        'database', 'query', 'seeder', 'hashid'],
+                        'database', 'query', 'seeder', 'swell', 'hashid'],
                         help='Rotulus features.')
 
     args = parser.parse_args()
@@ -28,6 +28,8 @@ def parse_cli():
         rotulus.seeder.main()
     elif args.action == "hashid":
         rotulus.hashid.main()
+    elif args.action == "swell":
+        rotulus.swell.main()
     else:
         parser.print_help()
 
