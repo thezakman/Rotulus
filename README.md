@@ -170,12 +170,12 @@ The `swell` module allows:
 - Hash all clear password using all hash types present in the database
 - Find clear password corresponding to hashed one
 
-### Hash all clear password using hashes types present in the database
+#### Hash all clear password using hashes types present in the database
 ```bash
 rotulus swell -a
 ```
 
-### Find clear password of a password hash
+#### Find clear password of a password hash
 ```bash
 rotulus swell -f
 ```
