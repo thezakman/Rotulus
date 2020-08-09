@@ -197,7 +197,7 @@ If md5 password compute from the second leak is found in the first one, you will
 
 ## Authors
 - [**op1um**](https://github.com/0p1um)
-- [**x1n5h3n**](https://github.com/x1n5h3n)
+- [**w1ld3r**](https://github.com/w1ld3r)
 
 ## Support us !
 ```
